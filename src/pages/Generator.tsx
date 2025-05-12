@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { 
   Download, 
   Copy, 
@@ -13,8 +14,19 @@ import {
   Plus,
   Save,
   RefreshCw,
+  CreditCard,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+// Locales supported
+const LOCALES = [
+  { id: 'us', label: 'United States' },
+  { id: 'uk', label: 'United Kingdom' },
+  { id: 'in', label: 'India' },
+  { id: 'jp', label: 'Japan' },
+  { id: 'br', label: 'Brazil' },
+  { id: 'de', label: 'Germany' },
+];
 
 // Field types for the generator
 const FIELD_TYPES = [
@@ -34,6 +46,10 @@ const FIELD_TYPES = [
   { id: 'username', label: 'Username' },
   { id: 'dateOfBirth', label: 'Date of Birth' },
   { id: 'age', label: 'Age' },
+  { id: 'creditCard', label: 'Credit Card Number' },
+  { id: 'creditCardType', label: 'Credit Card Type' },
+  { id: 'expiryDate', label: 'Expiry Date' },
+  { id: 'cvv', label: 'CVV' },
 ];
 
 interface Field {
@@ -48,6 +64,7 @@ interface MockData {
 
 const Generator = () => {
   const [rowCount, setRowCount] = useState(5);
+  const [locale, setLocale] = useState('us');
   const [fields, setFields] = useState<Field[]>([
     { id: crypto.randomUUID(), name: 'fullName', type: 'fullName' },
     { id: crypto.randomUUID(), name: 'email', type: 'email' },
@@ -56,49 +73,114 @@ const Generator = () => {
   const [mockData, setMockData] = useState<MockData[]>([]);
   const [templateName, setTemplateName] = useState('');
 
-  // Generate fake data based on field type
+  // Locale-specific data
+  const localeData = {
+    us: {
+      firstNames: ['John', 'Jane', 'Michael', 'Emily', 'David', 'Sarah', 'Robert', 'Linda'],
+      lastNames: ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Miller', 'Davis', 'Garcia'],
+      cities: ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego'],
+      states: ['CA', 'NY', 'TX', 'FL', 'IL', 'PA', 'OH', 'GA'],
+      streetFormats: ['### Main St', '### Oak Ave', '### Maple Rd', '### Washington Blvd', '### Park Lane'],
+      phoneFormat: '(###) ###-####',
+      zipFormat: '#####',
+    },
+    uk: {
+      firstNames: ['Oliver', 'Amelia', 'Harry', 'Emma', 'George', 'Olivia', 'Noah', 'Isla'],
+      lastNames: ['Smith', 'Jones', 'Williams', 'Brown', 'Taylor', 'Davies', 'Evans', 'Wilson'],
+      cities: ['London', 'Birmingham', 'Manchester', 'Glasgow', 'Liverpool', 'Edinburgh', 'Bristol', 'Leeds'],
+      states: ['England', 'Scotland', 'Wales', 'Northern Ireland'],
+      streetFormats: ['### High Street', '### Church Road', '### Park Avenue', '### Victoria Road', '### Station Road'],
+      phoneFormat: '07### ######',
+      zipFormat: '?# #??',
+    },
+    in: {
+      firstNames: ['Aarav', 'Diya', 'Arjun', 'Aanya', 'Vihaan', 'Ananya', 'Reyansh', 'Ishita'],
+      lastNames: ['Sharma', 'Patel', 'Verma', 'Desai', 'Gupta', 'Singh', 'Kumar', 'Shah'],
+      cities: ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune', 'Ahmedabad'],
+      states: ['Maharashtra', 'Delhi', 'Karnataka', 'Telangana', 'Tamil Nadu', 'West Bengal', 'Gujarat', 'Rajasthan'],
+      streetFormats: ['###, Sector ##', '###, Phase #', 'Flat ###, Building Name', '###, Block #', '###, Main Road'],
+      phoneFormat: '+91 ##### #####',
+      zipFormat: '######',
+    },
+    jp: {
+      firstNames: ['Haruto', 'Yuna', 'Sota', 'Yui', 'Ren', 'Hina', 'Takumi', 'Mei'],
+      lastNames: ['Sato', 'Suzuki', 'Takahashi', 'Tanaka', 'Watanabe', 'Ito', 'Yamamoto', 'Nakamura'],
+      cities: ['Tokyo', 'Osaka', 'Yokohama', 'Nagoya', 'Sapporo', 'Fukuoka', 'Kobe', 'Kyoto'],
+      states: ['Tokyo', 'Osaka', 'Kanagawa', 'Aichi', 'Hokkaido', 'Fukuoka', 'Hyogo', 'Kyoto'],
+      streetFormats: ['#-#-#, Neighborhood', 'Building Name #F, #-#-#', '#-##-#, Ward'],
+      phoneFormat: '0#-####-####',
+      zipFormat: '###-####',
+    },
+    br: {
+      firstNames: ['Miguel', 'Sofia', 'Arthur', 'Alice', 'Davi', 'Laura', 'Bernardo', 'Manuela'],
+      lastNames: ['Silva', 'Santos', 'Oliveira', 'Souza', 'Pereira', 'Costa', 'Rodrigues', 'Almeida'],
+      cities: ['São Paulo', 'Rio de Janeiro', 'Brasília', 'Salvador', 'Fortaleza', 'Belo Horizonte', 'Manaus', 'Curitiba'],
+      states: ['SP', 'RJ', 'DF', 'BA', 'CE', 'MG', 'AM', 'PR'],
+      streetFormats: ['Rua ###', 'Avenida ###', 'Travessa ###', 'Alameda ###'],
+      phoneFormat: '(##) #####-####',
+      zipFormat: '#####-###',
+    },
+    de: {
+      firstNames: ['Maximilian', 'Sophie', 'Alexander', 'Maria', 'Paul', 'Anna', 'Leon', 'Emma'],
+      lastNames: ['Müller', 'Schmidt', 'Schneider', 'Fischer', 'Weber', 'Meyer', 'Wagner', 'Becker'],
+      cities: ['Berlin', 'Hamburg', 'Munich', 'Cologne', 'Frankfurt', 'Stuttgart', 'Düsseldorf', 'Leipzig'],
+      states: ['Bavaria', 'North Rhine-Westphalia', 'Baden-Württemberg', 'Lower Saxony', 'Hesse', 'Saxony', 'Berlin', 'Hamburg'],
+      streetFormats: ['Hauptstraße ###', 'Schulstraße ###', 'Gartenweg ###', 'Bahnhofstraße ###'],
+      phoneFormat: '0### ########',
+      zipFormat: '#####',
+    },
+  };
+
+  // Credit card types
+  const creditCardTypes = ['Visa', 'MasterCard', 'American Express', 'Discover'];
+
+  // Format string with random numbers and letters
+  const formatString = (format: string) => {
+    return format.replace(/#/g, () => Math.floor(Math.random() * 10).toString())
+                .replace(/\?/g, () => String.fromCharCode(65 + Math.floor(Math.random() * 26)));
+  };
+
+  // Generate fake data based on field type and locale
   const generateFakeValue = (type: string) => {
+    const currentLocale = localeData[locale as keyof typeof localeData] || localeData.us;
+    
     switch (type) {
-      case 'fullName':
-        const firstNames = ['John', 'Jane', 'Michael', 'Emily', 'David', 'Sarah', 'Robert', 'Linda'];
-        const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Miller', 'Davis', 'Garcia'];
-        return `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
+      case 'fullName': {
+        const firstName = currentLocale.firstNames[Math.floor(Math.random() * currentLocale.firstNames.length)];
+        const lastName = currentLocale.lastNames[Math.floor(Math.random() * currentLocale.lastNames.length)];
+        return `${firstName} ${lastName}`;
+      }
       
       case 'firstName':
-        const fNames = ['John', 'Jane', 'Michael', 'Emily', 'David', 'Sarah', 'Robert', 'Linda'];
-        return fNames[Math.floor(Math.random() * fNames.length)];
+        return currentLocale.firstNames[Math.floor(Math.random() * currentLocale.firstNames.length)];
         
       case 'lastName':
-        const lNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Miller', 'Davis', 'Garcia'];
-        return lNames[Math.floor(Math.random() * lNames.length)];
+        return currentLocale.lastNames[Math.floor(Math.random() * currentLocale.lastNames.length)];
         
-      case 'email':
-        const emailFirsts = ['john', 'jane', 'michael', 'emily', 'david', 'sarah', 'robert', 'linda'];
-        const emailLasts = ['smith', 'johnson', 'williams', 'brown', 'jones', 'miller', 'davis', 'garcia'];
+      case 'email': {
+        const emailFirsts = currentLocale.firstNames.map(name => name.toLowerCase());
+        const emailLasts = currentLocale.lastNames.map(name => name.toLowerCase());
         const domains = ['gmail.com', 'yahoo.com', 'outlook.com', 'example.com', 'mail.com'];
         return `${emailFirsts[Math.floor(Math.random() * emailFirsts.length)]}.${emailLasts[Math.floor(Math.random() * emailLasts.length)]}@${domains[Math.floor(Math.random() * domains.length)]}`;
-        
+      }
+      
       case 'phone':
-        return `(${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`;
+        return formatString(currentLocale.phoneFormat);
         
       case 'address':
-        const streets = ['Main St', 'Oak Ave', 'Maple Rd', 'Washington Blvd', 'Park Lane'];
-        return `${Math.floor(Math.random() * 9000) + 1000} ${streets[Math.floor(Math.random() * streets.length)]}`;
+        return formatString(currentLocale.streetFormats[Math.floor(Math.random() * currentLocale.streetFormats.length)]);
         
       case 'city':
-        const cities = ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego'];
-        return cities[Math.floor(Math.random() * cities.length)];
+        return currentLocale.cities[Math.floor(Math.random() * currentLocale.cities.length)];
         
       case 'state':
-        const states = ['CA', 'NY', 'TX', 'FL', 'IL', 'PA', 'OH', 'GA'];
-        return states[Math.floor(Math.random() * states.length)];
+        return currentLocale.states[Math.floor(Math.random() * currentLocale.states.length)];
         
       case 'country':
-        const countries = ['United States', 'Canada', 'United Kingdom', 'Australia', 'Germany', 'France', 'Japan', 'Brazil'];
-        return countries[Math.floor(Math.random() * countries.length)];
+        return LOCALES.find(l => l.id === locale)?.label || 'United States';
         
       case 'zipCode':
-        return `${Math.floor(Math.random() * 90000) + 10000}`;
+        return formatString(currentLocale.zipFormat);
         
       case 'company':
         const companyTypes = ['Inc', 'LLC', 'Corp', 'Co', 'Group'];
@@ -127,6 +209,35 @@ const Generator = () => {
         
       case 'age':
         return Math.floor(Math.random() * 70) + 18;
+      
+      case 'creditCard':
+        // Generate credit card number based on format
+        let ccNumber = '';
+        if (Math.random() > 0.7) {
+          // Visa: 4xxx xxxx xxxx xxxx
+          ccNumber = '4' + formatString('###-####-####-####').replace(/-/g, '').substring(1);
+        } else if (Math.random() > 0.4) {
+          // MasterCard: 5xxx xxxx xxxx xxxx
+          ccNumber = '5' + formatString('###-####-####-####').replace(/-/g, '').substring(1);
+        } else if (Math.random() > 0.2) {
+          // Amex: 3xxx xxxxxx xxxxx
+          ccNumber = '3' + formatString('##-######-#####').replace(/-/g, '').substring(1);
+        } else {
+          // Discover: 6xxx xxxx xxxx xxxx
+          ccNumber = '6' + formatString('###-####-####-####').replace(/-/g, '').substring(1);
+        }
+        return ccNumber.match(/.{1,4}/g)?.join(' ') || ccNumber;
+        
+      case 'creditCardType':
+        return creditCardTypes[Math.floor(Math.random() * creditCardTypes.length)];
+        
+      case 'expiryDate':
+        const month = Math.floor(Math.random() * 12) + 1;
+        const year = new Date().getFullYear() + Math.floor(Math.random() * 5) + 1;
+        return `${month.toString().padStart(2, '0')}/${year.toString().substring(2)}`;
+        
+      case 'cvv':
+        return Math.floor(Math.random() * 900) + 100;
         
       default:
         return 'Unknown Type';
@@ -256,25 +367,28 @@ const Generator = () => {
   // Initialize data when component mounts or fields change
   useEffect(() => {
     generateData();
-  }, [fields, rowCount]);
+  }, [fields, rowCount, locale]);
 
   return (
     <Layout>
       <div className="mockly-container py-8">
-        <h1 className="text-3xl font-bold mb-8 text-mockly-slate">Data Generator</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-mockly-slate dark:text-white">Data Generator</h1>
+          <ThemeToggle />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Configuration Panel */}
           <div className="lg:col-span-1">
-            <Card>
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
               <CardHeader>
-                <CardTitle>Configure Data</CardTitle>
+                <CardTitle className="dark:text-white">Configure Data</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
                   {/* Row Count */}
                   <div>
-                    <label htmlFor="rowCount" className="block mb-2 text-sm font-medium text-gray-700">
+                    <label htmlFor="rowCount" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                       Number of Rows
                     </label>
                     <Input
@@ -284,18 +398,37 @@ const Generator = () => {
                       max={1000}
                       value={rowCount}
                       onChange={(e) => setRowCount(parseInt(e.target.value) || 5)}
-                      className="w-full"
+                      className="w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
+                  </div>
+
+                  {/* Locale Selection */}
+                  <div>
+                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Locale/Region
+                    </label>
+                    <Select value={locale} onValueChange={setLocale}>
+                      <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <SelectValue placeholder="Select locale" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LOCALES.map(localeOption => (
+                          <SelectItem key={localeOption.id} value={localeOption.id}>
+                            {localeOption.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Fields */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-medium text-gray-700">Fields</label>
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Fields</label>
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="text-mockly-purple hover:text-mockly-purple hover:bg-mockly-purple/10"
+                        className="text-mockly-purple hover:text-mockly-purple hover:bg-mockly-purple/10 dark:text-mockly-purple dark:hover:bg-mockly-purple/20"
                         onClick={addField}
                       >
                         <Plus className="h-4 w-4 mr-2" />
@@ -305,19 +438,19 @@ const Generator = () => {
 
                     <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
                       {fields.map((field) => (
-                        <div key={field.id} className="flex items-center gap-2 bg-gray-50 p-3 rounded-md">
+                        <div key={field.id} className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 p-3 rounded-md">
                           <div className="flex-1">
                             <Input
                               placeholder="Field name"
                               value={field.name}
                               onChange={(e) => updateField(field.id, 'name', e.target.value)}
-                              className="mb-2"
+                              className="mb-2 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
                             />
                             <Select
                               value={field.type}
                               onValueChange={(value) => updateField(field.id, 'type', value)}
                             >
-                              <SelectTrigger>
+                              <SelectTrigger className="dark:bg-gray-800 dark:border-gray-600 dark:text-white">
                                 <SelectValue placeholder="Select type" />
                               </SelectTrigger>
                               <SelectContent>
@@ -350,16 +483,17 @@ const Generator = () => {
                       Regenerate Data
                     </Button>
 
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <h3 className="text-sm font-medium mb-2">Save as Template</h3>
+                    <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-md">
+                      <h3 className="text-sm font-medium mb-2 dark:text-gray-300">Save as Template</h3>
                       <div className="flex gap-2">
                         <Input
                           placeholder="Template name"
                           value={templateName}
                           onChange={(e) => setTemplateName(e.target.value)}
+                          className="dark:bg-gray-800 dark:border-gray-600 dark:text-white"
                         />
                         <Button 
-                          className="mockly-button-secondary"
+                          className="mockly-button-secondary dark:bg-mockly-slate dark:text-white"
                           onClick={saveTemplate}
                         >
                           <Save className="h-4 w-4 mr-2" />
@@ -375,15 +509,16 @@ const Generator = () => {
 
           {/* Data Preview and Export */}
           <div className="lg:col-span-2">
-            <Card>
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
               <CardHeader>
                 <div className="flex justify-between items-center">
-                  <CardTitle>Data Preview</CardTitle>
+                  <CardTitle className="dark:text-white">Data Preview</CardTitle>
                   <div className="flex gap-2">
                     <Button 
                       variant="outline" 
                       size="sm"
                       onClick={copyToClipboard}
+                      className="dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
                     >
                       <Copy className="h-4 w-4 mr-2" />
                       Copy
@@ -392,6 +527,7 @@ const Generator = () => {
                       variant="outline" 
                       size="sm"
                       onClick={exportAsCSV}
+                      className="dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
                     >
                       <Download className="h-4 w-4 mr-2" />
                       CSV
@@ -400,6 +536,7 @@ const Generator = () => {
                       variant="outline" 
                       size="sm"
                       onClick={exportAsJSON}
+                      className="dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
                     >
                       <Download className="h-4 w-4 mr-2" />
                       JSON
@@ -408,9 +545,9 @@ const Generator = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="border rounded-md overflow-hidden">
+                <div className="border dark:border-gray-700 rounded-md overflow-hidden">
                   <Tabs defaultValue="table">
-                    <div className="px-4 py-2 bg-gray-50 border-b">
+                    <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
                       <TabsList className="grid grid-cols-2 w-48">
                         <TabsTrigger value="table">Table</TabsTrigger>
                         <TabsTrigger value="json">JSON</TabsTrigger>
@@ -419,26 +556,26 @@ const Generator = () => {
 
                     <TabsContent value="table" className="p-0">
                       <div className="overflow-x-auto max-h-[500px]">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                          <thead className="bg-gray-50 dark:bg-gray-700">
                             <tr>
                               {fields.map((field) => (
                                 <th 
                                   key={field.id}
-                                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                                 >
                                   {field.name}
                                 </th>
                               ))}
                             </tr>
                           </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
+                          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                             {mockData.map((row, rowIndex) => (
                               <tr key={rowIndex}>
                                 {fields.map((field) => (
                                   <td 
                                     key={field.id} 
-                                    className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                                    className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200"
                                   >
                                     {String(row[field.name] || '')}
                                   </td>
@@ -452,7 +589,7 @@ const Generator = () => {
 
                     <TabsContent value="json" className="p-0">
                       <div className="overflow-x-auto max-h-[500px]">
-                        <pre className="p-4 text-xs bg-gray-50 text-gray-800">
+                        <pre className="p-4 text-xs bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
                           {JSON.stringify(mockData, null, 2)}
                         </pre>
                       </div>
